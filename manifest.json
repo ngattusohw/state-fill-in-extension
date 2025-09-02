@@ -1,0 +1,31 @@
+{
+  "manifest_version": 3,
+  "name": "FranIQ State Auto-Fill",
+  "version": "1.0",
+  "description": "Automatically fill all US states in FranIQ Registration Record Details",
+  "permissions": ["activeTab", "scripting"],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://creatorapp.zoho.com/*",
+        "https://creatorl.zohopublic.com/*",
+        "https://creator.zoho.com/*",
+        "https://*.zoho.com/*",
+        "https://*.zohopublic.com/*"
+      ],
+      "js": ["content.js"],
+      "all_frames": true
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "FranIQ State Auto-Fill"
+  },
+  "host_permissions": [
+    "https://creatorapp.zoho.com/*",
+    "https://creatorl.zohopublic.com/*",
+    "https://creator.zoho.com/*",
+    "https://*.zoho.com/*",
+    "https://*.zohopublic.com/*"
+  ]
+}
