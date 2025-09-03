@@ -61,19 +61,11 @@ document.addEventListener('DOMContentLoaded', function () {
       }
 
       if (!isValidDomain) {
-        // Temporary bypass for testing - allow any domain with confirmation
-        const bypassConfirm = confirm(
-          `Not on expected Zoho domain (${
-            new URL(tab.url).hostname
-          }). Try anyway? (This might not work)`
-        );
-        if (!bypassConfirm) {
-          showStatus(`Not on Zoho domain. Current: ${new URL(tab.url).hostname}`, 'error');
-          autoFillBtn.disabled = true;
-          return false;
-        } else {
-          showStatus('Bypassing domain check...', 'info');
-        }
+        // Not on a valid domain - disable button silently
+        console.log(`Not on Zoho domain: ${new URL(tab.url).hostname}`);
+        showStatus(`Not on Zoho domain. Current: ${new URL(tab.url).hostname}`, 'error');
+        autoFillBtn.disabled = true;
+        return false;
       }
 
       return tab;

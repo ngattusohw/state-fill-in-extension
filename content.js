@@ -89,56 +89,23 @@ function clickAddNewButton() {
     console.log('Button href:', href);
     console.log('Button onclick:', onclick);
 
-    // Try different click methods to bypass CSP
+    // Use single reliable click method to avoid duplicates
     try {
-      // Method 1: Try multiple event types
-      ['mousedown', 'mouseup', 'click', 'focus'].forEach((eventType) => {
-        const event = new MouseEvent(eventType, {
-          bubbles: true,
-          cancelable: true,
-          view: window,
-        });
-        addButton.dispatchEvent(event);
-      });
-
-      // Method 2: Try touch events for mobile compatibility
-      if (window.TouchEvent) {
-        const touchEvent = new TouchEvent('touchstart', {
-          bubbles: true,
-          cancelable: true,
-        });
-        addButton.dispatchEvent(touchEvent);
-      }
-    } catch (error) {
-      console.log('Event dispatch failed:', error);
-    }
-
-    // Method 3: Direct click as fallback
-    try {
+      // Just use direct click - it works and doesn't create extra rows
       addButton.click();
     } catch (error) {
-      console.log('Direct click failed:', error);
+      console.log('Click failed, trying event dispatch');
+      // Fallback: single event dispatch
+      const event = new MouseEvent('click', {
+        bubbles: true,
+        cancelable: true,
+        view: window,
+      });
+      addButton.dispatchEvent(event);
     }
 
     // Method 4: Try to manually trigger row addition if button doesn't work
     // Wait a moment to see if a new row was added
-    setTimeout(() => {
-      const rowsBefore = document.querySelectorAll('div[elname="formRow"]').length;
-      console.log('Rows before add attempt:', rowsBefore);
-
-      // If no new row was added by the button, we might need to try a different approach
-      setTimeout(() => {
-        const rowsAfter = document.querySelectorAll('div[elname="formRow"]').length;
-        console.log('Rows after add attempt:', rowsAfter);
-
-        if (rowsAfter <= rowsBefore) {
-          console.log('Button may not have worked, new row not detected');
-        } else {
-          console.log('New row was added successfully');
-        }
-      }, 1000);
-    }, 500);
-
     return true;
   }
   console.error('Add New button not found');
@@ -147,142 +114,43 @@ function clickAddNewButton() {
 
 // Find the newest/last state dropdown and click it
 async function clickNewestStateDropdown() {
-  await sleep(1000); // Wait longer for new row to appear
+  await sleep(400); // Reduced wait time
 
-  // Try multiple selectors for state dropdowns
-  let stateDropdowns = [];
+  // Find state dropdowns using the method that works
+  let stateDropdowns = document.querySelectorAll('div[elname="formRow"] .select2-choice');
 
-  // Method 1: Look for state dropdowns in form rows (most specific)
-  stateDropdowns = document.querySelectorAll('div[elname="formRow"] .select2-choice');
-  console.log(`Method 1 found ${stateDropdowns.length} form row dropdowns`);
+  // Filter to state-specific dropdowns only
+  const stateSpecificDropdowns = Array.from(stateDropdowns).filter((dropdown) => {
+    const formGroup = dropdown.closest('.form-group');
+    if (!formGroup) return false;
 
-  // Filter to find only the state dropdowns (much more specific)
-  if (stateDropdowns.length > 0) {
-    const stateSpecificDropdowns = Array.from(stateDropdowns).filter((dropdown) => {
-      // Look for dropdowns that are specifically for states
-      const formGroup = dropdown.closest('.form-group');
-      if (!formGroup) return false;
+    // Look for the exact state group class (most reliable)
+    return (
+      formGroup.classList.contains('zc-Registration_Record_Details-States-group') ||
+      formGroup.style.left === '34px'
+    ); // First column position as backup
+  });
 
-      // Must have the exact state group class
-      if (formGroup.classList.contains('zc-Registration_Record_Details-States-group')) {
-        console.log('Found exact state group dropdown');
-        return true;
-      }
-
-      // Check if the formGroup is positioned in the first column (states column)
-      const leftPosition = formGroup.style.left;
-      if (leftPosition === '34px') {
-        console.log('Found dropdown at state column position (34px)');
-        return true;
-      }
-
-      // Check if dropdown is in first column
-      if (dropdown.closest('.formColumn.column-0')) {
-        console.log('Found dropdown in first column');
-        return true;
-      }
-
-      return false;
-    });
-
-    if (stateSpecificDropdowns.length > 0) {
-      stateDropdowns = stateSpecificDropdowns;
-      console.log(`Filtered to ${stateDropdowns.length} state-specific dropdowns`);
-    } else {
-      console.log('No state-specific dropdowns found, keeping all form row dropdowns');
-      // If we can't filter properly, just take the first few dropdowns from each row
-      stateDropdowns = Array.from(stateDropdowns).filter((dropdown, index) => {
-        // Only take first dropdown from each row (assuming it's the state dropdown)
-        const row = dropdown.closest('div[elname="formRow"]');
-        if (row) {
-          const dropdownsInRow = row.querySelectorAll('.select2-choice');
-          return dropdown === dropdownsInRow[0]; // First dropdown in each row
-        }
-        return false;
-      });
-      console.log(`Filtered to ${stateDropdowns.length} first-in-row dropdowns`);
-    }
-  }
-
-  // Method 2: Original selector as fallback
-  if (stateDropdowns.length === 0) {
-    stateDropdowns = document.querySelectorAll(
-      '.zc-Registration_Record_Details-States .select2-choice'
-    );
-    console.log(`Method 2 found ${stateDropdowns.length} state dropdowns`);
-  }
-
-  // Method 3: Look for any dropdowns with state-related content
-  if (stateDropdowns.length === 0) {
-    const allDropdowns = document.querySelectorAll('.select2-choice');
-    stateDropdowns = Array.from(allDropdowns).filter((dropdown) => {
-      const chosenText = dropdown.querySelector('.select2-chosen');
-      if (chosenText) {
-        const text = chosenText.textContent.trim();
-        // Check if it contains state names or "-Select-"
-        return text === '-Select-' || ALL_STATES.includes(text);
-      }
-      return false;
-    });
-    console.log(`Method 3 found ${stateDropdowns.length} content-filtered dropdowns`);
-  }
-
-  if (stateDropdowns.length === 0) {
-    console.error('No state dropdowns found');
+  if (stateSpecificDropdowns.length > 0) {
+    stateDropdowns = stateSpecificDropdowns;
+    console.log(`Found ${stateDropdowns.length} state dropdowns`);
+  } else {
+    console.log('No state dropdowns found');
     return false;
   }
 
-  // Click the last/newest dropdown
-  let newestDropdown = stateDropdowns[stateDropdowns.length - 1];
-
-  // Debug: Show what dropdown we're about to click
+  // Click the last/newest dropdown (simplified)
+  const newestDropdown = stateDropdowns[stateDropdowns.length - 1];
   const chosenText = newestDropdown.querySelector('.select2-chosen');
   const currentValue = chosenText ? chosenText.textContent.trim() : 'unknown';
-  console.log(`Clicking newest state dropdown with current value: "${currentValue}"`);
-
-  // Also log the dropdown's position and classes for debugging
-  const formGroup = newestDropdown.closest('.form-group');
-  if (formGroup) {
-    console.log('Dropdown classes:', formGroup.className);
-    console.log('Dropdown position:', formGroup.style.left);
-
-    // Validate this is actually a state dropdown
-    const isStateDropdown = formGroup.classList.contains(
-      'zc-Registration_Record_Details-States-group'
-    );
-    const isFirstColumn = formGroup.style.left === '34px';
-
-    console.log('Is state dropdown:', isStateDropdown);
-    console.log('Is first column:', isFirstColumn);
-
-    if (!isStateDropdown && !isFirstColumn) {
-      console.warn('WARNING: This does not appear to be a state dropdown!');
-      // Try to find the actual state dropdown in this row
-      const row = newestDropdown.closest('div[elname="formRow"]');
-      if (row) {
-        const stateDropdownInRow = row.querySelector(
-          '.zc-Registration_Record_Details-States-group .select2-choice'
-        );
-        if (stateDropdownInRow) {
-          console.log('Found actual state dropdown in this row, switching to it');
-          newestDropdown = stateDropdownInRow;
-          const newChosenText = newestDropdown.querySelector('.select2-chosen');
-          const newCurrentValue = newChosenText ? newChosenText.textContent.trim() : 'unknown';
-          console.log(`Switched to correct dropdown with value: "${newCurrentValue}"`);
-        }
-      }
-    }
-  }
-
-  // Try multiple approaches to open the dropdown
-  console.log('Attempting to open dropdown with multiple methods...');
+  console.log(`Clicking state dropdown with value: "${currentValue}"`);
 
   try {
-    // Method 1: Focus first, then click
+    // Method 1: Focus first, then click (this was working!)
     newestDropdown.focus();
     await sleep(100);
 
-    // Method 2: Try different event types
+    // Method 2: Try different event types to bypass CSP (THIS WAS WORKING!)
     ['focus', 'mousedown', 'mouseup', 'click'].forEach((eventType) => {
       const event = new Event(eventType, {
         bubbles: true,
@@ -298,192 +166,50 @@ async function clickNewestStateDropdown() {
       arrow.click();
     }
 
-    // Method 4: Direct click
+    // Method 4: Direct click as fallback
     newestDropdown.click();
+
+    await sleep(600); // Increased wait for dropdown to fully open
+    return true;
   } catch (error) {
-    console.log('All click methods failed:', error);
+    console.log('Dropdown click failed:', error);
+    return false;
   }
-
-  // Wait and check if dropdown opened
-  await sleep(500);
-
-  const dropdownAfterClick = document.getElementById('select2-drop');
-  if (dropdownAfterClick && !dropdownAfterClick.classList.contains('select2-display-none')) {
-    console.log('SUCCESS: Dropdown opened after click');
-  } else {
-    console.log('FAILED: Dropdown did not open');
-
-    // Debug: Check what dropdowns exist
-    const allDropdowns = document.querySelectorAll('[id*="select2"], [class*="select2-drop"]');
-    console.log('All select2 elements found:', allDropdowns.length);
-    allDropdowns.forEach((el, i) => {
-      console.log(`Dropdown ${i}:`, el.id, el.className, el.style.display);
-    });
-  }
-
-  return true;
 }
 
 // Select a specific state from the open dropdown
 async function selectStateFromDropdown(stateName) {
-  await sleep(800); // Wait even longer for dropdown to open
+  await sleep(600); // Increased wait time for dropdown options to load
 
-  // First, check if ANY dropdown is actually visible
-  console.log('Checking for ANY visible select2 dropdown...');
-
-  // Check for the specific ID
-  const dropdownCheck = document.getElementById('select2-drop');
-  if (dropdownCheck) {
-    console.log('Found select2-drop element');
-    console.log('Dropdown classes:', dropdownCheck.className);
-    console.log('Dropdown style display:', dropdownCheck.style.display);
-    console.log(
-      'Has select2-display-none class:',
-      dropdownCheck.classList.contains('select2-display-none')
-    );
-    console.log(
-      'Is visible:',
-      !dropdownCheck.classList.contains('select2-display-none') &&
-        dropdownCheck.style.display !== 'none'
-    );
-  } else {
-    console.log('select2-drop element not found');
-  }
-
-  // Check for ANY visible select2 dropdown
-  const anyVisibleDropdown = document.querySelector('.select2-drop:not(.select2-display-none)');
-  if (anyVisibleDropdown) {
-    console.log('Found visible dropdown with classes:', anyVisibleDropdown.className);
-    console.log('Visible dropdown ID:', anyVisibleDropdown.id);
-  } else {
-    console.log('No visible select2 dropdown found');
-  }
-
-  // Check for select2 results containers
-  const resultsContainers = document.querySelectorAll('.select2-results');
-  console.log('Found', resultsContainers.length, 'select2-results containers');
-  resultsContainers.forEach((container, i) => {
-    console.log(`Results container ${i}: visible=${container.offsetParent !== null}`);
-  });
-
-  // Try multiple selectors for state options
+  // Find state options using the working method only
   let stateOptions = [];
 
-  // Method 1: Use the exact selectors you found, but try any visible dropdown
+  // Use the exact selectors that work - find visible dropdown
   let dropdownContainer = document.getElementById('select2-drop');
-
-  // If the specific ID isn't found, try any visible dropdown
   if (!dropdownContainer || dropdownContainer.classList.contains('select2-display-none')) {
     dropdownContainer = document.querySelector('.select2-drop:not(.select2-display-none)');
-    if (dropdownContainer) {
-      console.log('Using alternative visible dropdown:', dropdownContainer.id || 'no-id');
-    }
   }
 
   if (dropdownContainer && !dropdownContainer.classList.contains('select2-display-none')) {
     stateOptions = dropdownContainer.querySelectorAll(
       'li.select2-result-selectable .select2-result-label'
     );
-    console.log(
-      `Method 1 found dropdown container with ${stateOptions.length} options:`,
-      Array.from(stateOptions).map((o) => o.textContent.trim())
-    );
+    console.log(`Found dropdown with ${stateOptions.length} options`);
   } else {
-    console.log('Method 1: No visible dropdown container found');
+    console.log('No visible dropdown found using method 1');
   }
 
-  // Method 2: Alternative - look for any select2-results container
-  if (stateOptions.length === 0) {
-    const resultsContainer = document.querySelector('.select2-results');
-    if (resultsContainer) {
-      stateOptions = resultsContainer.querySelectorAll(
-        'li.select2-result-selectable .select2-result-label'
-      );
-      console.log(
-        `Method 2 found results container with ${stateOptions.length} options:`,
-        Array.from(stateOptions).map((o) => o.textContent.trim())
-      );
-    } else {
-      console.log('Method 2: select2-results container not found');
-    }
-  }
-
-  // Method 3: Look for the exact structure you provided
+  // Method 2: Try exact structure from DOM inspection (the one that works!)
   if (stateOptions.length === 0) {
     stateOptions = document.querySelectorAll(
       'li.select2-results-dept-0.select2-result.select2-result-selectable .select2-result-label'
     );
-    console.log(
-      `Method 3 found exact structure with ${stateOptions.length} options:`,
-      Array.from(stateOptions).map((o) => o.textContent.trim())
-    );
+    console.log(`Method 2 found ${stateOptions.length} options`);
   }
 
-  // Method 4: Look specifically for visible Select2 dropdowns with state-like options
   if (stateOptions.length === 0) {
-    // Wait a bit more and try to find visible select2 dropdown
-    await sleep(200);
-
-    // Look for the specific dropdown using the exact ID you found
-    const specificDropdown = document.getElementById('select2-drop');
-    if (specificDropdown && !specificDropdown.classList.contains('select2-display-none')) {
-      stateOptions = specificDropdown.querySelectorAll(
-        'li.select2-result-selectable .select2-result-label'
-      );
-      console.log(
-        `Method 4 found specific dropdown (ID: select2-drop) with ${stateOptions.length} options:`,
-        Array.from(stateOptions).map((o) => o.textContent.trim())
-      );
-
-      // Check if these look like state options
-      const optionTexts = Array.from(stateOptions).map((o) => o.textContent.trim());
-      const hasStateOptions = optionTexts.some((text) => ALL_STATES.includes(text));
-
-      if (!hasStateOptions) {
-        console.log('Dropdown does not contain state options, skipping');
-        stateOptions = [];
-      } else {
-        console.log('Found state options in dropdown!');
-      }
-    } else {
-      console.log('select2-drop element not found or is hidden');
-    }
-  }
-
-  // Method 5: Fallback to any role-based options (but filter out non-states)
-  if (stateOptions.length === 0) {
-    const allOptions = document.querySelectorAll('li[role="presentation"], div[role="option"]');
-    const filteredOptions = Array.from(allOptions).filter((option) => {
-      const text = option.textContent.trim();
-      // Only include if it looks like a state name
-      return (
-        text.length > 2 &&
-        text.length < 20 &&
-        ![
-          'List',
-          'Calendar',
-          'Timeline',
-          'Print',
-          'XLSX',
-          'PDF',
-          'HTML',
-          'XML',
-          'JSON',
-          'CSV',
-          'TSV',
-          'Search',
-          'Sort',
-          'Group',
-          'Hide',
-        ].some((keyword) => text.includes(keyword))
-      );
-    });
-
-    stateOptions = filteredOptions;
-    console.log(
-      `Method 5 found ${stateOptions.length} filtered options:`,
-      Array.from(stateOptions).map((o) => o.textContent.trim())
-    );
+    console.log('No dropdown options found with any method');
+    return false;
   }
 
   // Find the option that matches our target state
@@ -496,10 +222,9 @@ async function selectStateFromDropdown(stateName) {
 
     // The actual clickable element might be the parent li, not the label
     const clickableElement = targetOption.closest('li') || targetOption;
-    console.log('Clicking element:', clickableElement.tagName, clickableElement.className);
 
     try {
-      // Try multiple click approaches for the exact structure you found
+      // Try multiple click approaches that were working
       ['mousedown', 'mouseup', 'click'].forEach((eventType) => {
         const event = new MouseEvent(eventType, {
           bubbles: true,
@@ -521,7 +246,7 @@ async function selectStateFromDropdown(stateName) {
       }
     }
 
-    await sleep(500); // Wait longer for selection to complete
+    await sleep(200); // Reduced wait time
     return true;
   } else {
     console.error(`State option not found: ${stateName}`);
@@ -529,14 +254,6 @@ async function selectStateFromDropdown(stateName) {
       'Available options:',
       Array.from(stateOptions).map((o) => o.textContent.trim())
     );
-
-    // Debug: Show what we're actually finding
-    const dropdownContainer = document.getElementById('select2-drop');
-    if (dropdownContainer) {
-      console.log('Dropdown container found, checking contents...');
-      console.log('Dropdown HTML:', dropdownContainer.innerHTML.substring(0, 500));
-    }
-
     return false;
   }
 }
@@ -555,13 +272,19 @@ async function addSingleState(stateName) {
   }
 
   // Wait and check if a new row was actually added
-  await sleep(1000);
+  await sleep(500); // Reduced wait time
   const rowsAfter = document.querySelectorAll('div[elname="formRow"]').length;
   console.log(`Rows after clicking Add New: ${rowsAfter}`);
 
   if (rowsAfter <= rowsBefore) {
     console.error('No new row was added - Add New button may not be working');
     return false;
+  } else if (rowsAfter > rowsBefore + 1) {
+    console.warn(
+      `Warning: ${rowsAfter - rowsBefore} rows added instead of 1. Continuing with newest row.`
+    );
+  } else {
+    console.log('✅ Exactly 1 new row added successfully');
   }
 
   // Step 2: Click the newest state dropdown
@@ -582,12 +305,10 @@ async function addSingleState(stateName) {
 async function autoFillAllStates() {
   console.log('Starting auto-fill process...');
 
-  // Check if we're on the right page
+  // Check if we're on the right page (silently exit if not)
   const addButton = document.querySelector('a[aria-label="Add New"]');
   if (!addButton) {
-    alert(
-      "This doesn't appear to be the Registration Record Details form. Please navigate to the form and try again."
-    );
+    console.log('Add New button not found - not on registration form, exiting silently');
     return;
   }
 
@@ -631,7 +352,7 @@ async function autoFillAllStates() {
       }
 
       // Small delay between each state to avoid overwhelming the system
-      await sleep(200);
+      await sleep(100); // Further reduced for speed
     } catch (error) {
       errorCount++;
       console.error(`Error adding ${state}:`, error);
